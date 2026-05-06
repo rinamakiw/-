@@ -1,0 +1,1584 @@
+import { useState, useEffect } from "react";
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+
+const TPOS = [
+  { id: "casual", label: "カジュアル", emoji: "😎", desc: "気軽なお出かけ・休日" },
+  { id: "smart", label: "きれいめ", emoji: "✨", desc: "ちょっとおしゃれに" },
+  { id: "work", label: "バイト・仕事", emoji: "💼", desc: "清潔感・動きやすさ重視" },
+  { id: "formal", label: "ゼミ・発表", emoji: "🎓", desc: "フォーマル寄り" },
+  { id: "date", label: "デート", emoji: "💕", desc: "おしゃれ・こなれ感" },
+  { id: "sports", label: "スポーツ", emoji: "🏃", desc: "動きやすさ最優先" },
+];
+
+const COLOR_GROUPS = [
+  { label: "ホワイト系", colors: [["#FFFFFF", "白"], ["#F5F0EB", "オフホワイト"], ["#EDE8E0", "生成り"]] },
+  { label: "グレー・黒系", colors: [["#AAAAAA", "ライトグレー"], ["#666666", "グレー"], ["#222222", "ブラック"]] },
+  { label: "ベージュ・ブラウン系", colors: [["#E8D5B7", "ベージュ"], ["#C4A882", "キャメル"], ["#8B6914", "ブラウン"]] },
+  { label: "ネイビー・ブルー系", colors: [["#1C3A6E", "ネイビー"], ["#3C7EC8", "ブルー"], ["#A0C4E8", "ライトブルー"]] },
+  { label: "グリーン系", colors: [["#3A6644", "ダークグリーン"], ["#5FA86A", "グリーン"], ["#B0D4B0", "ペールグリーン"]] },
+  { label: "レッド・ピンク系", colors: [["#C0392B", "レッド"], ["#E8748C", "ピンク"], ["#F2C4D0", "ライトピンク"]] },
+  { label: "その他", colors: [["#8B3FA0", "パープル"], ["#E8A020", "マスタード"], ["#C4583C", "テラコッタ"]] },
+];
+const ALL_COLORS = COLOR_GROUPS.flatMap((g) => g.colors);
+
+const PATTERNS = ["無地", "ストライプ", "チェック", "ボーダー", "ドット"];
+
+// ─── SVG SHAPES ──────────────────────────────────────────────────────────────
+
+function darken(hex) {
+  try {
+    const n = parseInt(hex.slice(1), 16);
+    const r = Math.max(0, (n >> 16) - 40);
+    const g = Math.max(0, ((n >> 8) & 0xff) - 40);
+    const b = Math.max(0, (n & 0xff) - 40);
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+  } catch {
+    return hex;
+  }
+}
+
+const SVG_SHAPES = {
+  tshirt: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M14 8 L6 16 L12 18 L12 40 L36 40 L36 18 L42 16 L34 8 C32 12 16 12 14 8Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  shirt: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M14 6 L6 16 L12 18 L12 42 L36 42 L36 18 L42 16 L34 6 C32 10 16 10 14 6Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="24" y1="10" x2="24" y2="42" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+    </svg>
+  ),
+  hoodie: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M14 7 L6 18 L13 20 L13 42 L35 42 L35 20 L42 18 L34 7 C30 13 18 13 14 7Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <ellipse cx="24" cy="10" rx="5" ry="4" fill={c} stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
+      <rect x="20" y="28" width="8" height="4" rx="2" fill="rgba(0,0,0,0.1)" />
+    </svg>
+  ),
+  knit: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M16 8 L8 18 L14 20 L14 42 L34 42 L34 20 L40 18 L32 8 C30 11 18 11 16 8Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M14 26 Q19 24 24 26 Q29 28 34 26" stroke="rgba(0,0,0,0.15)" strokeWidth="1" fill="none" />
+      <path d="M14 32 Q19 30 24 32 Q29 34 34 32" stroke="rgba(0,0,0,0.15)" strokeWidth="1" fill="none" />
+    </svg>
+  ),
+  blouse: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M16 6 Q24 14 32 6 L40 16 L34 18 L34 42 L14 42 L14 18 L8 16Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  tank: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M16 6 L14 12 L12 42 L36 42 L34 12 L32 6 Q28 10 20 10 Q18 8 16 6Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  skinny: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M12 6 L36 6 L34 26 L28 44 L20 44 L18 26 L12 6Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="24" y1="6" x2="24" y2="26" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
+    </svg>
+  ),
+  wide: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M10 6 L38 6 L38 26 L30 44 L18 44 L10 26Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="24" y1="6" x2="24" y2="26" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
+    </svg>
+  ),
+  chino: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M11 6 L37 6 L35 26 L29 44 L19 44 L13 26Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="24" y1="6" x2="24" y2="26" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
+    </svg>
+  ),
+  jeans: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M11 6 L37 6 L35 26 L28 44 L20 44 L13 26Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="24" y1="6" x2="24" y2="26" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
+      <line x1="14" y1="9" x2="34" y2="9" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+    </svg>
+  ),
+  skirt: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M16 6 L32 6 L38 42 L10 42Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="14" y1="10" x2="34" y2="10" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+    </svg>
+  ),
+  shorts: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M10 6 L38 6 L36 28 L28 28 L24 18 L20 28 L12 28Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="24" y1="6" x2="24" y2="20" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
+    </svg>
+  ),
+  cardigan: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M16 6 L8 18 L14 20 L14 44 L34 44 L34 20 L40 18 L32 6 C28 16 20 16 16 6Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="20" y1="14" x2="24" y2="44" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+      <line x1="28" y1="14" x2="24" y2="44" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+    </svg>
+  ),
+  denim_jkt: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M14 7 L6 17 L12 19 L12 42 L36 42 L36 19 L42 17 L34 7 C32 11 16 11 14 7Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="20" y1="12" x2="24" y2="42" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+      <line x1="28" y1="12" x2="24" y2="42" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+      <rect
+        x="13"
+        y="22"
+        width="6"
+        height="4"
+        rx="1"
+        fill="rgba(255,255,255,0.2)"
+        stroke="rgba(0,0,0,0.15)"
+        strokeWidth="0.5"
+      />
+    </svg>
+  ),
+  trench: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M15 5 L7 17 L13 19 L13 46 L35 46 L35 19 L41 17 L33 5 C31 10 17 10 15 5Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="19" y1="12" x2="24" y2="46" stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
+      <line x1="29" y1="12" x2="24" y2="46" stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
+      <line x1="12" y1="24" x2="36" y2="24" stroke="rgba(0,0,0,0.12)" strokeWidth="1" />
+    </svg>
+  ),
+  down: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M14 7 L6 18 L13 20 L13 40 L35 40 L35 20 L42 18 L34 7 C32 12 16 12 14 7Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.2)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M13 26 Q24 24 35 26" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" fill="none" />
+      <path d="M13 32 Q24 30 35 32" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" fill="none" />
+    </svg>
+  ),
+  sneaker: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path d="M4 32 Q8 20 20 20 L36 20 Q44 20 44 28 L44 34 L4 34Z" fill={c} stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
+      <rect x="4" y="34" width="40" height="5" rx="2" fill={darken(c)} stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+      <path d="M12 20 L14 28M20 20 L22 28M28 20 L30 28" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" />
+    </svg>
+  ),
+  loafer: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path d="M4 32 Q6 22 18 22 L36 22 Q44 24 44 30 L44 34 L4 34Z" fill={c} stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
+      <rect x="4" y="34" width="40" height="4" rx="1" fill={darken(c)} stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+      <path d="M18 22 Q24 18 30 22" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" fill="none" />
+    </svg>
+  ),
+  boots: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <path
+        d="M14 6 L14 30 Q8 32 6 36 L6 42 L42 42 L42 36 Q40 32 34 30 L34 6Z"
+        fill={c}
+        stroke="rgba(0,0,0,0.25)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <line x1="14" y1="20" x2="34" y2="20" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+    </svg>
+  ),
+  sandal: (c, sz = 48) => (
+    <svg width={sz} height={sz} viewBox="0 0 48 48" fill="none">
+      <rect x="4" y="36" width="40" height="6" rx="3" fill={darken(c)} stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+      <path d="M10 36 L14 24 Q18 20 24 22 Q30 24 34 22 L38 36" fill={c} stroke="rgba(0,0,0,0.2)" strokeWidth="1" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+const SHAPE_DEFS = {
+  トップス: [
+    { id: "tshirt", label: "Tシャツ" },
+    { id: "shirt", label: "シャツ" },
+    { id: "hoodie", label: "パーカー" },
+    { id: "knit", label: "ニット" },
+    { id: "blouse", label: "ブラウス" },
+    { id: "tank", label: "タンクトップ" },
+  ],
+  ボトムス: [
+    { id: "skinny", label: "スキニー" },
+    { id: "wide", label: "ワイドパンツ" },
+    { id: "chino", label: "チノパン" },
+    { id: "jeans", label: "ジーンズ" },
+    { id: "skirt", label: "スカート" },
+    { id: "shorts", label: "ショーツ" },
+  ],
+  アウター: [
+    { id: "cardigan", label: "カーディガン" },
+    { id: "denim_jkt", label: "デニムJK" },
+    { id: "trench", label: "トレンチ" },
+    { id: "down", label: "ダウン" },
+  ],
+  シューズ: [
+    { id: "sneaker", label: "スニーカー" },
+    { id: "loafer", label: "ローファー" },
+    { id: "boots", label: "ブーツ" },
+    { id: "sandal", label: "サンダル" },
+  ],
+};
+
+// ─── DEFAULT TEMPLATES ────────────────────────────────────────────────────────
+
+const DEFAULT_TEMPLATES = {
+  トップス: [
+    { id: "t1", shapeId: "tshirt", label: "白Tシャツ", color: "#FFFFFF", pattern: "無地" },
+    { id: "t2", shapeId: "tshirt", label: "黒Tシャツ", color: "#222222", pattern: "無地" },
+    { id: "t3", shapeId: "shirt", label: "オフホワイトシャツ", color: "#F5F0EB", pattern: "無地" },
+    { id: "t4", shapeId: "shirt", label: "ネイビーストライプシャツ", color: "#1C3A6E", pattern: "ストライプ" },
+    { id: "t5", shapeId: "hoodie", label: "グレーパーカー", color: "#666666", pattern: "無地" },
+    { id: "t6", shapeId: "knit", label: "ベージュニット", color: "#E8D5B7", pattern: "無地" },
+  ],
+  ボトムス: [
+    { id: "b1", shapeId: "jeans", label: "ブルージーンズ", color: "#3C7EC8", pattern: "無地" },
+    { id: "b2", shapeId: "chino", label: "ベージュチノパン", color: "#E8D5B7", pattern: "無地" },
+    { id: "b3", shapeId: "wide", label: "黒ワイドパンツ", color: "#222222", pattern: "無地" },
+    { id: "b4", shapeId: "skinny", label: "黒スキニー", color: "#222222", pattern: "無地" },
+    { id: "b5", shapeId: "skirt", label: "ピンクスカート", color: "#F2C4D0", pattern: "無地" },
+    { id: "b6", shapeId: "shorts", label: "ベージュショーツ", color: "#E8D5B7", pattern: "無地" },
+  ],
+  アウター: [
+    { id: "o1", shapeId: "cardigan", label: "ベージュカーディガン", color: "#E8D5B7", pattern: "無地" },
+    { id: "o2", shapeId: "denim_jkt", label: "デニムジャケット", color: "#3C7EC8", pattern: "無地" },
+    { id: "o3", shapeId: "trench", label: "キャメルトレンチ", color: "#C4A882", pattern: "無地" },
+    { id: "o4", shapeId: "down", label: "黒ダウン", color: "#222222", pattern: "無地" },
+  ],
+  シューズ: [
+    { id: "s1", shapeId: "sneaker", label: "白スニーカー", color: "#FFFFFF", pattern: "無地" },
+    { id: "s2", shapeId: "sneaker", label: "黒スニーカー", color: "#222222", pattern: "無地" },
+    { id: "s3", shapeId: "loafer", label: "ブラウンローファー", color: "#8B6914", pattern: "無地" },
+    { id: "s4", shapeId: "boots", label: "ブラウンブーツ", color: "#8B6914", pattern: "無地" },
+  ],
+};
+
+// ─── OUTFIT ENGINE ────────────────────────────────────────────────────────────
+
+const COLOR_META = Object.fromEntries(
+  COLOR_GROUPS.flatMap((group) =>
+    group.colors.map(([hex, name]) => [hex, { name, group: group.label }])
+  )
+);
+
+const TPO_PREFS = {
+  casual: {
+    tops: ["tshirt", "hoodie", "knit", "shirt"],
+    bottoms: ["jeans", "wide", "chino", "shorts", "skinny"],
+    shoes: ["sneaker", "sandal", "boots"],
+    outers: ["cardigan", "denim_jkt"],
+  },
+  smart: {
+    tops: ["shirt", "knit", "blouse", "tshirt"],
+    bottoms: ["chino", "wide", "skirt", "skinny"],
+    shoes: ["loafer", "boots", "sneaker"],
+    outers: ["cardigan", "trench", "denim_jkt"],
+  },
+  work: {
+    tops: ["shirt", "knit", "blouse", "tshirt"],
+    bottoms: ["chino", "wide", "skinny", "jeans"],
+    shoes: ["loafer", "sneaker", "boots"],
+    outers: ["cardigan", "trench", "denim_jkt"],
+  },
+  formal: {
+    tops: ["shirt", "blouse", "knit"],
+    bottoms: ["chino", "wide", "skirt", "skinny"],
+    shoes: ["loafer", "boots"],
+    outers: ["trench", "cardigan"],
+  },
+  date: {
+    tops: ["knit", "shirt", "blouse", "tshirt"],
+    bottoms: ["skirt", "wide", "skinny", "jeans"],
+    shoes: ["loafer", "boots", "sandal", "sneaker"],
+    outers: ["cardigan", "trench", "denim_jkt"],
+  },
+  sports: {
+    tops: ["tshirt", "hoodie", "tank"],
+    bottoms: ["shorts", "wide", "jeans"],
+    shoes: ["sneaker", "sandal"],
+    outers: ["cardigan", "denim_jkt"],
+  },
+};
+
+const TITLE_BANK = {
+  casual: ["休日ラフ", "街歩き", "抜け感"],
+  smart: ["好印象", "上品見え", "都会派"],
+  work: ["きちんと", "清潔ワーク", "軽快仕事"],
+  formal: ["発表対応", "端正見え", "知的きれい"],
+  date: ["大人かわい", "好印象", "こなれ感"],
+  sports: ["軽快アクティブ", "動ける", "スポーティ"],
+};
+
+function getDemoWeather() {
+  const month = new Date().getMonth() + 1;
+  if ([12, 1, 2].includes(month)) return { temp: 10, low: 3, desc: "冬晴れ", icon: "☀️" };
+  if ([3, 4, 5].includes(month)) return { temp: 22, low: 14, desc: "晴れ時々曇り", icon: "⛅" };
+  if ([6, 7, 8].includes(month)) return { temp: 29, low: 23, desc: "晴れ", icon: "🌤️" };
+  return { temp: 20, low: 13, desc: "くもり時々晴れ", icon: "☁️" };
+}
+
+function getColorName(hex) {
+  return COLOR_META[hex]?.name || hex;
+}
+
+function getColorGroup(hex) {
+  return COLOR_META[hex]?.group || "その他";
+}
+
+function isNeutralGroup(group) {
+  return [
+    "ホワイト系",
+    "グレー・黒系",
+    "ベージュ・ブラウン系",
+    "ネイビー・ブルー系",
+  ].includes(group);
+}
+
+function colorHarmonyScore(items) {
+  const valid = items.filter(Boolean);
+  const groups = valid.map((i) => getColorGroup(i.color));
+  const uniqueGroups = [...new Set(groups)];
+  const accentCount = groups.filter((g) => !isNeutralGroup(g)).length;
+  const neutralCount = groups.length - accentCount;
+  const patterned = valid.filter((i) => i.pattern !== "無地").length;
+
+  let score = 0;
+
+  if (accentCount === 0) score += 4;
+  if (accentCount === 1 && neutralCount >= 2) score += 6;
+  if (accentCount === 2 && neutralCount >= 1) score += 3;
+  if (uniqueGroups.length === 2) score += 2;
+  if (uniqueGroups.length >= 4) score -= 2;
+
+  if (patterned === 1) score += 1;
+  if (patterned >= 2) score -= 2;
+
+  const [top, bottom, shoes] = valid;
+  if (top && bottom && getColorGroup(top.color) === getColorGroup(bottom.color)) score += 1;
+  if (shoes && isNeutralGroup(getColorGroup(shoes.color))) score += 1;
+
+  return score;
+}
+
+function weatherScore(combo, weather) {
+  const { top, bottom, shoes, outer } = combo;
+  const shapeIds = [top, bottom, shoes, outer].filter(Boolean).map((i) => i.shapeId);
+
+  let score = 0;
+
+  if (weather.temp >= 26) {
+    shapeIds.forEach((id) => {
+      if (["hoodie", "knit", "down", "trench"].includes(id)) score -= 2;
+    });
+    if (bottom.shapeId === "shorts") score += 2;
+    if (shoes.shapeId === "sandal" || shoes.shapeId === "sneaker") score += 1;
+  }
+
+  if (weather.temp <= 18 || weather.low <= 12) {
+    if (outer) score += 4;
+    else score -= 2;
+
+    if (top.shapeId === "tank") score -= 3;
+    if (bottom.shapeId === "shorts") score -= 3;
+    if (shoes.shapeId === "sandal") score -= 3;
+
+    if (top.shapeId === "knit" || top.shapeId === "hoodie") score += 1.5;
+    if (shoes.shapeId === "boots") score += 1;
+  }
+
+  if (weather.temp > 18 && weather.temp < 26) {
+    if (outer && ["cardigan", "denim_jkt"].includes(outer.shapeId)) score += 1.5;
+    if (outer && outer.shapeId === "down" && weather.temp >= 22) score -= 3;
+  }
+
+  return score;
+}
+
+function tpoScore(combo, tpoId) {
+  const pref = TPO_PREFS[tpoId];
+  if (!pref) return 0;
+
+  let score = 0;
+
+  if (pref.tops.includes(combo.top.shapeId)) score += 4;
+  if (pref.bottoms.includes(combo.bottom.shapeId)) score += 4;
+  if (pref.shoes.includes(combo.shoes.shapeId)) score += 4;
+  if (combo.outer && pref.outers.includes(combo.outer.shapeId)) score += 2;
+
+  if (tpoId === "formal") {
+    if (combo.bottom.shapeId === "shorts") score -= 5;
+    if (combo.shoes.shapeId === "sneaker" || combo.shoes.shapeId === "sandal") score -= 3;
+  }
+
+  if (tpoId === "work") {
+    if (combo.top.shapeId === "tank") score -= 5;
+    if (combo.bottom.shapeId === "shorts") score -= 4;
+  }
+
+  if (tpoId === "sports") {
+    if (!["sneaker", "sandal"].includes(combo.shoes.shapeId)) score -= 4;
+    if (combo.bottom.shapeId === "skirt") score -= 5;
+    if (combo.top.shapeId === "shirt" || combo.top.shapeId === "blouse") score -= 2;
+  }
+
+  if (tpoId === "date") {
+    if (combo.top.pattern !== "無地") score += 1;
+    if (combo.outer?.shapeId === "down") score -= 1;
+  }
+
+  if (tpoId === "work" && combo.top.pattern === "無地") score += 1;
+  if (tpoId === "smart" && combo.shoes.shapeId === "loafer") score += 1;
+  if (tpoId === "casual" && combo.shoes.shapeId === "sneaker") score += 1;
+
+  return score;
+}
+
+function buildVibe(combo, tpoId) {
+  const parts = [];
+
+  if (combo.outer) parts.push("レイヤード");
+  if (["shirt", "blouse"].includes(combo.top.shapeId)) parts.push("きれいめ");
+  if (["hoodie", "tshirt"].includes(combo.top.shapeId)) parts.push("リラックス");
+  if (["wide", "skirt"].includes(combo.bottom.shapeId)) parts.push("抜け感");
+  if (["skinny", "chino"].includes(combo.bottom.shapeId)) parts.push("すっきり");
+  if (["loafer", "boots"].includes(combo.shoes.shapeId)) parts.push("大人っぽい");
+  if (combo.shoes.shapeId === "sneaker") parts.push("軽快");
+
+  const base = {
+    casual: "気負わず今っぽくまとまる",
+    smart: "上品さとこなれ感を両立",
+    work: "清潔感と動きやすさを両立",
+    formal: "きちんと見えしつつ堅すぎない",
+    date: "親しみやすく好印象に見える",
+    sports: "アクティブで動きやすい",
+  }[tpoId];
+
+  const lead = [...new Set(parts)].slice(0, 2).join("・");
+  return lead ? `${lead}コーデ` : base;
+}
+
+function buildColorNote(combo) {
+  const top = getColorName(combo.top.color);
+  const bottom = getColorName(combo.bottom.color);
+  const shoes = getColorName(combo.shoes.color);
+
+  const tg = getColorGroup(combo.top.color);
+  const bg = getColorGroup(combo.bottom.color);
+  const sg = getColorGroup(combo.shoes.color);
+
+  if (isNeutralGroup(tg) && !isNeutralGroup(bg)) {
+    return `${top}で受けて${bottom}を主役に`;
+  }
+  if (!isNeutralGroup(tg) && isNeutralGroup(bg)) {
+    return `${bottom}で落ち着かせて${top}を引き立てる`;
+  }
+  if (tg === bg) {
+    return `${top}〜${bottom}の同系色で統一感`;
+  }
+  if (isNeutralGroup(sg)) {
+    return `${top}×${bottom}に${shoes}でなじませる`;
+  }
+  return `${top}×${bottom}×${shoes}でメリハリ`;
+}
+
+function comboSignature(entry) {
+  const { combo } = entry;
+  const shapes = [
+    combo.top.shapeId,
+    combo.bottom.shapeId,
+    combo.shoes.shapeId,
+    combo.outer?.shapeId || "none",
+  ].join("-");
+  const colors = [
+    getColorGroup(combo.top.color),
+    getColorGroup(combo.bottom.color),
+    getColorGroup(combo.shoes.color),
+  ].join("-");
+  return `${shapes}|${colors}`;
+}
+
+function isTooSimilar(a, b) {
+  const as = comboSignature(a);
+  const bs = comboSignature(b);
+  return as === bs;
+}
+
+function generateOutfitSuggestions(allItems, tpo, weather) {
+  const tops = allItems.filter((i) => i.category === "トップス");
+  const bottoms = allItems.filter((i) => i.category === "ボトムス");
+  const shoes = allItems.filter((i) => i.category === "シューズ");
+  const outers = allItems.filter((i) => i.category === "アウター");
+
+  if (!tops.length || !bottoms.length || !shoes.length) return [];
+
+  const outerOptions = [null, ...outers];
+  const scored = [];
+
+  for (const top of tops) {
+    for (const bottom of bottoms) {
+      for (const shoe of shoes) {
+        for (const outer of outerOptions) {
+          const combo = { top, bottom, shoes: shoe, outer };
+
+          let score = 0;
+          score += tpoScore(combo, tpo.id);
+          score += colorHarmonyScore([top, bottom, shoe, outer]);
+          score += weatherScore(combo, weather);
+
+          if (outer?.shapeId === "down" && weather.temp >= 23) score -= 4;
+          if (top.shapeId === "tank" && tpo.id !== "sports" && weather.temp <= 24) score -= 2;
+
+          const ids = [top.id, bottom.id, shoe.id, ...(outer ? [outer.id] : [])];
+
+          scored.push({
+            score,
+            combo,
+            ids,
+          });
+        }
+      }
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const picked = [];
+  for (const entry of scored) {
+    if (picked.length === 0) {
+      picked.push(entry);
+      continue;
+    }
+    if (!picked.some((p) => isTooSimilar(p, entry))) {
+      picked.push(entry);
+    }
+    if (picked.length >= 3) break;
+  }
+
+  while (picked.length < 3) {
+    const candidate = scored.find(
+      (s) => !picked.some((p) => p.ids.join(",") === s.ids.join(","))
+    );
+    if (!candidate) break;
+    picked.push(candidate);
+  }
+
+  return picked.slice(0, 3).map((entry, idx) => ({
+    title: TITLE_BANK[tpo.id]?.[idx] || `提案${idx + 1}`,
+    ids: entry.ids,
+    vibe: buildVibe(entry.combo, tpo.id),
+    color_note: buildColorNote(entry.combo),
+  }));
+}
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+
+const SK = "qsc-v2-templates";
+
+const storageAPI = {
+  async get(key) {
+    try {
+      if (typeof window !== "undefined" && window.storage?.get) {
+        return await window.storage.get(key);
+      }
+      const value = localStorage.getItem(key);
+      return value != null ? { value } : null;
+    } catch {
+      return null;
+    }
+  },
+  async set(key, value) {
+    try {
+      if (typeof window !== "undefined" && window.storage?.set) {
+        await window.storage.set(key, value);
+        return;
+      }
+      localStorage.setItem(key, value);
+    } catch {}
+  },
+};
+
+const load = async () => {
+  try {
+    const r = await storageAPI.get(SK);
+    return r ? JSON.parse(r.value) : null;
+  } catch {
+    return null;
+  }
+};
+
+const save = async (d) => {
+  try {
+    await storageAPI.set(SK, JSON.stringify(d));
+  } catch {}
+};
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [screen, setScreen] = useState("home"); // home | edit | add
+  const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
+  const [weather] = useState(getDemoWeather());
+  const [selectedTpo, setSelectedTpo] = useState(null);
+  const [outfits, setOutfits] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [addingCat, setAddingCat] = useState(null);
+
+  useEffect(() => {
+    load().then((d) => {
+      if (d) setTemplates(d);
+    });
+  }, []);
+
+  const updateTemplates = async (t) => {
+    setTemplates(t);
+    await save(t);
+  };
+
+  const allItems = Object.entries(templates).flatMap(([cat, items]) =>
+    items.map((i) => ({ ...i, category: cat }))
+  );
+
+  const propose = async (tpo) => {
+    setSelectedTpo(tpo);
+
+    const hasRequired = ["トップス", "ボトムス", "シューズ"].every(
+      (cat) => (templates[cat] || []).length > 0
+    );
+
+    if (!hasRequired) {
+      alert("トップス・ボトムス・シューズを最低1点ずつ用意してください。");
+      return;
+    }
+
+    setLoading(true);
+    setOutfits([]);
+
+    try {
+      await new Promise((r) => setTimeout(r, 450));
+
+      const generated = generateOutfitSuggestions(allItems, tpo, weather);
+
+      setOutfits(
+        generated.map((o) => ({
+          ...o,
+          items: o.ids.map((id) => allItems.find((i) => i.id === id)).filter(Boolean),
+        }))
+      );
+    } catch {
+      alert("提案の生成に失敗しました。もう一度お試しください。");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── ADD FLOW ──
+  if (addingCat) {
+    return (
+      <div style={S.root}>
+        <style>{CSS}</style>
+        <AddFlow
+          category={addingCat}
+          onSave={(item) => {
+            const t = {
+              ...templates,
+              [addingCat]: [...(templates[addingCat] || []), item],
+            };
+            updateTemplates(t);
+            setAddingCat(null);
+          }}
+          onBack={() => setAddingCat(null)}
+        />
+      </div>
+    );
+  }
+
+  // ── EDIT SCREEN ──
+  if (screen === "edit") {
+    return (
+      <div style={S.root}>
+        <style>{CSS}</style>
+        <EditScreen
+          templates={templates}
+          onUpdate={updateTemplates}
+          onBack={() => setScreen("home")}
+          onAdd={(cat) => setAddingCat(cat)}
+        />
+      </div>
+    );
+  }
+
+  // ── HOME ──
+  const today = new Date();
+  const DAY = ["日", "月", "火", "水", "木", "金", "土"][today.getDay()];
+
+  return (
+    <div style={S.root}>
+      <style>{CSS}</style>
+
+      {/* Header */}
+      <div style={S.header}>
+        <div>
+          <div style={S.logo}>QuickStep Closet</div>
+          <div style={S.sub}>
+            {today.getMonth() + 1}/{today.getDate()}（{DAY}）
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={S.weatherPill}>
+            <span style={{ fontSize: 16 }}>{weather.icon}</span>
+            <span style={{ fontWeight: 800, fontSize: 15 }}>{weather.temp}°</span>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>↓{weather.low}°</span>
+          </div>
+          <button onClick={() => setScreen("edit")} style={S.editBtn}>
+            テンプレ編集 ✏️
+          </button>
+        </div>
+      </div>
+
+      {/* TPO grid */}
+      <div style={{ padding: "14px 16px 8px" }}>
+        <div style={S.secLabel}>今日はどんなシーン？</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {TPOS.map((tpo) => (
+            <button
+              key={tpo.id}
+              onClick={() => propose(tpo)}
+              style={{
+                ...S.tpoCard,
+                ...(selectedTpo?.id === tpo.id ? S.tpoActive : {}),
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{tpo.emoji}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, marginTop: 2 }}>{tpo.label}</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "#64748b",
+                  marginTop: 1,
+                  lineHeight: 1.2,
+                  textAlign: "center",
+                }}
+              >
+                {tpo.desc}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Proposals */}
+      <div style={{ padding: "8px 16px 80px" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "50px 0" }}>
+            <div style={S.spin} />
+            <p style={{ color: "#64748b", marginTop: 14, fontSize: 13 }}>
+              3パターン考え中…
+            </p>
+          </div>
+        ) : outfits.length > 0 ? (
+          <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <div style={S.secLabel}>💡 {selectedTpo?.label}コーデ — 3パターン</div>
+              <button onClick={() => propose(selectedTpo)} style={S.retryBtn}>
+                🔄 再提案
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {outfits.map((outfit, i) => (
+                <OutfitCard key={i} outfit={outfit} rank={i + 1} />
+              ))}
+            </div>
+          </>
+        ) : !selectedTpo ? (
+          <div style={{ textAlign: "center", padding: "50px 0 30px", color: "#334155" }}>
+            <div style={{ fontSize: 44, marginBottom: 10 }}>👆</div>
+            <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+              シーンを選ぶと
+              <br />
+              AI風ロジックがコーデを3パターン提案します
+              <br />
+              <span style={{ color: "#475569", fontSize: 11 }}>服の登録は不要です</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ─── OUTFIT CARD ──────────────────────────────────────────────────────────────
+
+function OutfitCard({ outfit, rank }) {
+  const RC = ["#f59e0b", "#94a3b8", "#c4783c"][rank - 1] || "#94a3b8";
+  const tops = outfit.items.filter((i) => i.category === "トップス");
+  const bottoms = outfit.items.filter((i) => i.category === "ボトムス");
+  const outers = outfit.items.filter((i) => i.category === "アウター");
+  const shoes = outfit.items.filter((i) => i.category === "シューズ");
+
+  return (
+    <div style={S.outfitCard}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ ...S.rank, color: RC, borderColor: `${RC}44`, background: `${RC}18` }}>
+          # {rank}
+        </div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#f1f5f9" }}>{outfit.title}</div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>{outfit.vibe}</div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "flex-end",
+          justifyContent: "center",
+          padding: "6px 0 8px",
+          overflowX: "auto",
+        }}
+      >
+        {outers.map((i) => (
+          <ClothViz key={i.id} item={i} size={50} />
+        ))}
+        {tops.map((i) => (
+          <ClothViz key={i.id} item={i} size={56} />
+        ))}
+        {bottoms.map((i) => (
+          <ClothViz key={i.id} item={i} size={56} />
+        ))}
+        {shoes.map((i) => (
+          <ClothViz key={i.id} item={i} size={44} />
+        ))}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: 10,
+          padding: "7px 10px",
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ fontSize: 14 }}>🎨</span>
+        <span style={{ fontSize: 11, color: "#94a3b8" }}>{outfit.color_note}</span>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {outfit.items.map((i) => (
+          <div
+            key={i.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 20,
+              padding: "3px 8px",
+            }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: i.color,
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            />
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>{i.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClothViz({ item, size }) {
+  const fn = SVG_SHAPES[item.shapeId];
+  if (!fn) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <div
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          borderRadius: 10,
+          padding: 5,
+          border: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        {fn(item.color, size)}
+      </div>
+      <span
+        style={{
+          fontSize: 9,
+          color: "#475569",
+          textAlign: "center",
+          maxWidth: size + 10,
+          lineHeight: 1.2,
+        }}
+      >
+        {item.label}
+      </span>
+    </div>
+  );
+}
+
+// ─── EDIT SCREEN ──────────────────────────────────────────────────────────────
+
+function EditScreen({ templates, onUpdate, onBack, onAdd }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#080c18",
+        color: "#f1f5f9",
+        fontFamily: "'Hiragino Sans','Noto Sans JP',sans-serif",
+        maxWidth: 480,
+        margin: "0 auto",
+      }}
+    >
+      <div style={S.header}>
+        <button onClick={onBack} style={S.backBtn}>
+          ← 戻る
+        </button>
+        <div style={{ fontWeight: 800, fontSize: 16 }}>テンプレート編集</div>
+        <div style={{ width: 70 }} />
+      </div>
+      <div style={{ padding: "12px 16px 80px" }}>
+        <div
+          style={{
+            fontSize: 13,
+            color: "#64748b",
+            marginBottom: 16,
+            lineHeight: 1.7,
+            background: "rgba(245,158,11,0.08)",
+            borderRadius: 10,
+            padding: "10px 12px",
+            border: "1px solid rgba(245,158,11,0.15)",
+          }}
+        >
+          💡 自分の手持ちに近い「形×色」に調整するほど、提案精度がアップします。不要なものは削除、足りないものは追加してください。
+        </div>
+        {Object.entries(templates).map(([cat, items]) => (
+          <div key={cat} style={{ marginBottom: 22 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#e2e8f0" }}>
+                {cat} <span style={{ fontSize: 11, color: "#475569" }}>（{items.length}点）</span>
+              </div>
+              <button onClick={() => onAdd(cat)} style={S.addSmBtn}>
+                ＋ 追加
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
+              {items.map((item) => {
+                const fn = SVG_SHAPES[item.shapeId];
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      flexShrink: 0,
+                      position: "relative",
+                      background: "rgba(255,255,255,0.05)",
+                      borderRadius: 12,
+                      padding: "8px 6px 6px",
+                      border: "1px solid rgba(255,255,255,0.07)",
+                      minWidth: 68,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    {fn && fn(item.color, 40)}
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: "#94a3b8",
+                        textAlign: "center",
+                        maxWidth: 64,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                    {item.pattern !== "無地" && (
+                      <div style={{ fontSize: 8, color: "#475569" }}>{item.pattern}</div>
+                    )}
+                    <button
+                      onClick={() => {
+                        const t = { ...templates, [cat]: items.filter((i) => i.id !== item.id) };
+                        onUpdate(t);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: 3,
+                        right: 3,
+                        background: "rgba(248,113,113,0.25)",
+                        border: "none",
+                        color: "#f87171",
+                        borderRadius: "50%",
+                        width: 16,
+                        height: 16,
+                        fontSize: 10,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── ADD FLOW ────────────────────────────────────────────────────────────────
+
+function AddFlow({ category, onSave, onBack }) {
+  const [step, setStep] = useState(0);
+  const [shapeId, setShapeId] = useState("");
+  const [color, setColor] = useState("#FFFFFF");
+  const [pattern, setPattern] = useState("無地");
+
+  const shapes = SHAPE_DEFS[category] || [];
+  const selShape = shapes.find((s) => s.id === shapeId);
+  const svgFn = SVG_SHAPES[shapeId];
+
+  const doSave = () => {
+    const cname = ALL_COLORS.find((c) => c[0] === color)?.[1] || color;
+    const pstr = pattern === "無地" ? "" : `・${pattern}`;
+    onSave({
+      id: `cx-${Date.now()}`,
+      shapeId,
+      label: `${selShape?.label}（${cname}${pstr}）`,
+      color,
+      pattern,
+    });
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#080c18",
+        color: "#f1f5f9",
+        fontFamily: "'Hiragino Sans','Noto Sans JP',sans-serif",
+        maxWidth: 480,
+        margin: "0 auto",
+        paddingBottom: 80,
+      }}
+    >
+      <div style={S.header}>
+        <button onClick={step === 0 ? onBack : () => setStep((s) => s - 1)} style={S.backBtn}>
+          ← 戻る
+        </button>
+        <div style={{ fontWeight: 800, fontSize: 16 }}>{category}を追加</div>
+        <div style={{ width: 70 }} />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: 10, padding: "12px 0" }}>
+        {["形を選ぶ", "色を選ぶ", "柄を選ぶ"].map((l, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: "50%",
+                background:
+                  i < step
+                    ? "#f59e0b"
+                    : i === step
+                    ? "rgba(245,158,11,0.3)"
+                    : "rgba(255,255,255,0.08)",
+                color: i <= step ? "#f59e0b" : "#475569",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 700,
+                border: `1.5px solid ${
+                  i <= step ? "#f59e0b" : "rgba(255,255,255,0.1)"
+                }`,
+              }}
+            >
+              {i < step ? "✓" : i + 1}
+            </div>
+            {i < 2 && (
+              <div
+                style={{
+                  width: 16,
+                  height: 1,
+                  background: i < step ? "#f59e0b" : "rgba(255,255,255,0.1)",
+                }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        {step === 0 && (
+          <>
+            <div style={S.stepTitle}>シルエットを選ぶ</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {shapes.map((sh) => {
+                const fn = SVG_SHAPES[sh.id];
+                return (
+                  <button
+                    key={sh.id}
+                    onClick={() => {
+                      setShapeId(sh.id);
+                      setStep(1);
+                    }}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      padding: "12px 4px",
+                      borderRadius: 12,
+                      border: `1.5px solid ${
+                        shapeId === sh.id
+                          ? "rgba(245,158,11,0.6)"
+                          : "rgba(255,255,255,0.08)"
+                      }`,
+                      background:
+                        shapeId === sh.id
+                          ? "rgba(245,158,11,0.1)"
+                          : "rgba(255,255,255,0.03)",
+                      cursor: "pointer",
+                      gap: 4,
+                    }}
+                  >
+                    {fn && fn("#888888", 48)}
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>{sh.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {step === 1 && (
+          <>
+            <div style={S.stepTitle}>カラーを選ぶ</div>
+            {svgFn && (
+              <div style={{ textAlign: "center", marginBottom: 18 }}>
+                <div
+                  style={{
+                    display: "inline-block",
+                    background: "rgba(255,255,255,0.05)",
+                    borderRadius: 14,
+                    padding: 12,
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {svgFn(color, 72)}
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+              {COLOR_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 8 }}>
+                    {group.label}
+                  </div>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {group.colors.map(([hex, name]) => (
+                      <button
+                        key={hex}
+                        onClick={() => setColor(hex)}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 4,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: "50%",
+                            background: hex,
+                            border: `3px solid ${
+                              color === hex ? "#f59e0b" : "rgba(255,255,255,0.12)"
+                            }`,
+                            boxShadow: color === hex ? `0 0 14px ${hex}99` : "none",
+                            transition: "all 0.15s",
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 9,
+                            color: color === hex ? "#f59e0b" : "#475569",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setStep(2)} style={S.nextBtn}>
+              次へ →
+            </button>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div style={S.stepTitle}>柄を選ぶ</div>
+            {svgFn && (
+              <div style={{ textAlign: "center", marginBottom: 18 }}>
+                <div
+                  style={{
+                    display: "inline-block",
+                    background: "rgba(255,255,255,0.05)",
+                    borderRadius: 14,
+                    padding: 12,
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {svgFn(color, 80)}
+                </div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                  {selShape?.label} · {ALL_COLORS.find((c) => c[0] === color)?.[1] || color}
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+              {PATTERNS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPattern(p)}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: 20,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    border: `1px solid ${
+                      pattern === p ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.1)"
+                    }`,
+                    background: pattern === p ? "rgba(245,158,11,0.15)" : "transparent",
+                    color: pattern === p ? "#f59e0b" : "#94a3b8",
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <button onClick={doSave} style={S.nextBtn}>
+              ✨ 追加する
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+
+const S = {
+  root: {
+    minHeight: "100vh",
+    background: "#080c18",
+    color: "#f1f5f9",
+    fontFamily: "'Hiragino Sans','Noto Sans JP',sans-serif",
+    maxWidth: 480,
+    margin: "0 auto",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 16px 12px",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    position: "sticky",
+    top: 0,
+    background: "rgba(8,12,24,0.96)",
+    backdropFilter: "blur(10px)",
+    zIndex: 10,
+    gap: 8,
+  },
+  logo: {
+    fontSize: 16,
+    fontWeight: 900,
+    letterSpacing: "0.04em",
+    color: "#f59e0b",
+  },
+  sub: {
+    fontSize: 11,
+    color: "#475569",
+    marginTop: 1,
+  },
+  weatherPill: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    background: "rgba(255,255,255,0.06)",
+    padding: "5px 9px",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.08)",
+    flexShrink: 0,
+  },
+  editBtn: {
+    background: "rgba(245,158,11,0.1)",
+    border: "1px solid rgba(245,158,11,0.25)",
+    color: "#f59e0b",
+    borderRadius: 10,
+    padding: "5px 10px",
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 700,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+  },
+  secLabel: {
+    fontSize: 11,
+    color: "#475569",
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  tpoCard: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "12px 6px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    cursor: "pointer",
+    color: "#e2e8f0",
+    transition: "all 0.15s",
+  },
+  tpoActive: {
+    border: "1px solid rgba(245,158,11,0.5)",
+    background: "rgba(245,158,11,0.12)",
+    color: "#f59e0b",
+  },
+  outfitCard: {
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: 16,
+    padding: 16,
+    border: "1px solid rgba(255,255,255,0.07)",
+  },
+  rank: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 11,
+    fontWeight: 800,
+    border: "1px solid",
+    flexShrink: 0,
+  },
+  retryBtn: {
+    background: "transparent",
+    border: "1px solid rgba(255,255,255,0.1)",
+    color: "#64748b",
+    borderRadius: 8,
+    padding: "4px 10px",
+    cursor: "pointer",
+    fontSize: 11,
+  },
+  spin: {
+    width: 30,
+    height: 30,
+    borderRadius: "50%",
+    border: "3px solid rgba(255,255,255,0.08)",
+    borderTop: "3px solid #f59e0b",
+    margin: "0 auto",
+    animation: "spin 0.7s linear infinite",
+  },
+  addSmBtn: {
+    background: "rgba(245,158,11,0.12)",
+    border: "1px solid rgba(245,158,11,0.3)",
+    color: "#f59e0b",
+    borderRadius: 8,
+    padding: "4px 10px",
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  backBtn: {
+    background: "none",
+    border: "none",
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: 13,
+    padding: "4px 0",
+    fontWeight: 600,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: 800,
+    margin: "14px 0 12px",
+    color: "#f1f5f9",
+  },
+  nextBtn: {
+    width: "100%",
+    padding: "13px 0",
+    borderRadius: 14,
+    border: "none",
+    cursor: "pointer",
+    background: "linear-gradient(135deg,#f59e0b,#ef4444)",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 14,
+    letterSpacing: "0.04em",
+  },
+};
+
+{
+  "short_name": "QuickStep",
+  "name": "QuickStep Closet",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#080c18",
+  "background_color": "#080c18"
+}
+
+
+const CSS = `
+@keyframes spin{from{transform:rotate(0)}to{transform
